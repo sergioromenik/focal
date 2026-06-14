@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CheckSquare, ArrowRight, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) {
+      setErrorMsg(err);
+      setStatus("error");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
 
     setStatus("sending");
+    setErrorMsg(null);
     const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -22,7 +34,12 @@ export default function LoginPage() {
       },
     });
 
-    setStatus(error ? "error" : "sent");
+    if (error) {
+      setErrorMsg(error.message);
+      setStatus("error");
+    } else {
+      setStatus("sent");
+    }
   }
 
   return (
@@ -70,7 +87,7 @@ export default function LoginPage() {
                 </button>
                 {status === "error" && (
                   <p className="text-sm text-center" style={{ color: "#993C1D" }}>
-                    Algo deu errado. Tente novamente.
+                    {errorMsg || "Algo deu errado. Tente novamente."}
                   </p>
                 )}
               </form>
