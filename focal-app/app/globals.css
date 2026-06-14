@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base: #faf9f6;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --ink-primary: #1f1e1b;
+  --ink-secondary: #6b6a64;
+  --ink-tertiary: #a3a29c;
+  --line-subtle: rgba(31, 30, 27, 0.08);
+  --line-default: rgba(31, 30, 27, 0.14);
+  --accent: #4a52d6;
+  --accent-ink: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-base: #15151a;
+    --bg-surface: #1c1c22;
+    --bg-raised: #20202833;
+    --bg-raised: #20202a;
+    --ink-primary: #f2f1ed;
+    --ink-secondary: #b8b6ae;
+    --ink-tertiary: #7c7a74;
+    --line-subtle: rgba(255, 255, 255, 0.07);
+    --line-default: rgba(255, 255, 255, 0.13);
+    --accent: #8a90ff;
+    --accent-ink: #15151a;
+  }
+}
+
+* {
+  border-color: var(--line-subtle);
+}
+
+html,
+body {
+  background: var(--bg-base);
+  color: var(--ink-primary);
+}
+
+body {
+  font-feature-settings: "ss01" on;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+input,
+textarea,
+select {
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  border: 1px solid var(--line-default);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(74, 82, 214, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 3px rgba(138, 144, 255, 0.16);
+  }
+}
+
+button {
+  font-family: inherit;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
+}
