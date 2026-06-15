@@ -8,14 +8,14 @@ import {
   requestNotificationPermission,
   checkDueTasks,
 } from "@/lib/notifications";
-import type { Period, Priority, Segment, Task } from "@/lib/types";
-import { DEFAULT_SEGMENTS } from "@/lib/types";
+import type { Segment, Task, ViewTab } from "@/lib/types";
+import { DEFAULT_SEGMENTS, getViewTab } from "@/lib/types";
 import TopBar from "@/components/TopBar";
 import StatsBar from "@/components/StatsBar";
 import Sidebar from "@/components/Sidebar";
 import FilterBar, { type PriorityFilter } from "@/components/FilterBar";
 import TaskList from "@/components/TaskList";
-import TaskModal from "@/components/TaskModal";
+import TaskModal, { type TaskFormData } from "@/components/TaskModal";
 import NotificationBanner from "@/components/NotificationBanner";
 
 export default function DashboardPage() {
@@ -25,11 +25,12 @@ export default function DashboardPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  const [activeTab, setActiveTab] = useState<Period>("dia");
+  const [activeTab, setActiveTab] = useState<ViewTab>("hoje");
   const [activeSegment, setActiveSegment] = useState<string | "Todos">("Todos");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("Todas");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
 
@@ -60,7 +61,7 @@ export default function DashboardPage() {
 
       if (!active) return;
       setSegments(segmentRows ?? []);
-      setTasks(taskRows ?? []);
+      setTasks((taskRows ?? []).map((t) => ({ ...t, subtasks: t.subtasks ?? [] })));
       setLoading(false);
     }
 
@@ -82,11 +83,13 @@ export default function DashboardPage() {
           if (payload.eventType === "INSERT") {
             const incoming = payload.new as Task;
             if (current.some((t) => t.id === incoming.id)) return current;
-            return [incoming, ...current];
+            return [{ ...incoming, subtasks: incoming.subtasks ?? [] }, ...current];
           }
           if (payload.eventType === "UPDATE") {
             const incoming = payload.new as Task;
-            return current.map((t) => (t.id === incoming.id ? incoming : t));
+            return current.map((t) =>
+              t.id === incoming.id ? { ...incoming, subtasks: incoming.subtasks ?? [] } : t
+            );
           }
           if (payload.eventType === "DELETE") {
             const removed = payload.old as Task;
@@ -128,14 +131,7 @@ export default function DashboardPage() {
     await supabase.from("tasks").delete().eq("id", id);
   }
 
-  async function handleAddTask(data: {
-    title: string;
-    segment: string;
-    priority: Priority;
-    period: Period;
-    due_date: string | null;
-    notes: string | null;
-  }) {
+  async function handleAddTask(data: TaskFormData) {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
     if (!user) return;
@@ -158,8 +154,28 @@ export default function DashboardPage() {
       .single();
 
     if (inserted) {
-      setTasks((current) => current.map((t) => (t.id === optimistic.id ? inserted : t)));
+      setTasks((current) =>
+        current.map((t) => (t.id === optimistic.id ? { ...inserted, subtasks: inserted.subtasks ?? [] } : t))
+      );
     }
+  }
+
+  async function handleUpdateTask(id: string, data: TaskFormData) {
+    setTasks((current) => current.map((t) => (t.id === id ? { ...t, ...data } : t)));
+    setEditingTask(null);
+    await supabase.from("tasks").update(data).eq("id", id);
+  }
+
+  function handleEditTask(task: Task) {
+    setEditingTask(task);
+  }
+
+  async function handleToggleSubtask(taskId: string, subtaskId: string) {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const subtasks = task.subtasks.map((s) => (s.id === subtaskId ? { ...s, done: !s.done } : s));
+    setTasks((current) => current.map((t) => (t.id === taskId ? { ...t, subtasks } : t)));
+    await supabase.from("tasks").update({ subtasks }).eq("id", taskId);
   }
 
   async function handleAddSegment(name: string, color: string) {
@@ -187,6 +203,34 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleUpdateSegment(id: string, name: string, color: string) {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+    if (!user) return;
+
+    const oldSegment = segments.find((s) => s.id === id);
+    const oldName = oldSegment?.name;
+
+    setSegments((current) => current.map((s) => (s.id === id ? { ...s, name, color } : s)));
+
+    if (oldName && oldName !== name) {
+      setTasks((current) => current.map((t) => (t.segment === oldName ? { ...t, segment: name } : t)));
+      if (activeSegment === oldName) setActiveSegment(name);
+    }
+
+    await supabase.from("segments").update({ name, color }).eq("id", id);
+
+    if (oldName && oldName !== name) {
+      await supabase.from("tasks").update({ segment: name }).eq("user_id", user.id).eq("segment", oldName);
+    }
+  }
+
+  async function handleDeleteSegment(id: string, name: string) {
+    setSegments((current) => current.filter((s) => s.id !== id));
+    if (activeSegment === name) setActiveSegment("Todos");
+    await supabase.from("segments").delete().eq("id", id);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -195,7 +239,7 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
       if (activeSegment !== "Todos" && t.segment !== activeSegment) return false;
-      if (activeTab !== "ano" && t.period !== activeTab) return false;
+      if (getViewTab(t.due_date) !== activeTab) return false;
       if (priorityFilter === "Feitas") {
         if (!t.done) return false;
       } else if (priorityFilter !== "Todas" && t.priority !== priorityFilter) {
@@ -241,6 +285,8 @@ export default function DashboardPage() {
           counts={counts}
           totalPending={totalPending}
           onAddSegment={handleAddSegment}
+          onUpdateSegment={handleUpdateSegment}
+          onDeleteSegment={handleDeleteSegment}
         />
 
         <div>
@@ -251,17 +297,28 @@ export default function DashboardPage() {
             onPriorityFilterChange={setPriorityFilter}
             onAddClick={() => setModalOpen(true)}
           />
-          <TaskList tasks={filtered} segments={segments} onToggle={handleToggle} onDelete={handleDelete} />
+          <TaskList
+            tasks={filtered}
+            segments={segments}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onEdit={handleEditTask}
+            onToggleSubtask={handleToggleSubtask}
+          />
         </div>
       </div>
 
-      {modalOpen && (
+      {(modalOpen || editingTask) && (
         <TaskModal
           segments={segments}
           defaultSegment={activeSegment}
-          defaultPeriod={activeTab}
-          onClose={() => setModalOpen(false)}
-          onSave={handleAddTask}
+          activeTab={activeTab}
+          editingTask={editingTask}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingTask(null);
+          }}
+          onSave={(data) => (editingTask ? handleUpdateTask(editingTask.id, data) : handleAddTask(data))}
         />
       )}
     </main>

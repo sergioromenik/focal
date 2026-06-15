@@ -1,13 +1,13 @@
 "use client";
 
 import { CheckSquare, LogOut } from "lucide-react";
-import type { Period } from "@/lib/types";
-import { PERIODS } from "@/lib/types";
+import type { ViewTab } from "@/lib/types";
+import { VIEW_TABS } from "@/lib/types";
 import clsx from "clsx";
 
 interface TopBarProps {
-  activeTab: Period;
-  onTabChange: (tab: Period) => void;
+  activeTab: ViewTab;
+  onTabChange: (tab: ViewTab) => void;
   onSignOut: () => void;
 }
 
@@ -21,18 +21,18 @@ export default function TopBar({ activeTab, onTabChange, onSignOut }: TopBarProp
 
       <div className="flex items-center gap-2">
         <div className="flex gap-0.5 bg-bg-surface border border-line-subtle rounded-lg p-0.5">
-          {PERIODS.map((p) => (
+          {VIEW_TABS.map((tab) => (
             <button
-              key={p.value}
-              onClick={() => onTabChange(p.value)}
+              key={tab.value}
+              onClick={() => onTabChange(tab.value)}
               className={clsx(
                 "px-3.5 py-1.5 rounded-md text-[13px] transition-colors",
-                activeTab === p.value
+                activeTab === tab.value
                   ? "bg-bg-base text-ink-primary font-medium border border-line-subtle"
                   : "text-ink-secondary hover:text-ink-primary"
               )}
             >
-              {p.label}
+              {tab.label}
             </button>
           ))}
         </div>

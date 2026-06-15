@@ -7,9 +7,11 @@ interface TaskListProps {
   segments: Segment[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (task: Task) => void;
+  onToggleSubtask: (taskId: string, subtaskId: string) => void;
 }
 
-export default function TaskList({ tasks, segments, onToggle, onDelete }: TaskListProps) {
+export default function TaskList({ tasks, segments, onToggle, onDelete, onEdit, onToggleSubtask }: TaskListProps) {
   const colorFor = (segmentName: string) =>
     segments.find((s) => s.name === segmentName)?.color ?? "#888780";
 
@@ -38,6 +40,8 @@ export default function TaskList({ tasks, segments, onToggle, onDelete }: TaskLi
               segmentColor={colorFor(task.segment)}
               onToggle={onToggle}
               onDelete={onDelete}
+              onEdit={onEdit}
+              onToggleSubtask={onToggleSubtask}
             />
           ))}
         </>
@@ -52,6 +56,8 @@ export default function TaskList({ tasks, segments, onToggle, onDelete }: TaskLi
               segmentColor={colorFor(task.segment)}
               onToggle={onToggle}
               onDelete={onDelete}
+              onEdit={onEdit}
+              onToggleSubtask={onToggleSubtask}
             />
           ))}
         </>

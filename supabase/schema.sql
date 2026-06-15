@@ -15,8 +15,9 @@ create table if not exists public.tasks (
   notes text,
   segment text not null,
   priority text not null check (priority in ('Alta','Média','Baixa')),
-  period text not null check (period in ('dia','semana','mes','ano')),
   due_date date,
+  due_time time,
+  subtasks jsonb not null default '[]'::jsonb,
   done boolean not null default false,
   created_at timestamptz default now()
 );
